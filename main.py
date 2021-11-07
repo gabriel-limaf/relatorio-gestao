@@ -97,6 +97,9 @@ while True:
                  or values['-ENTRADA1-'] == values['-SAIDA-']):
         janela1.close()
         janela2 = erro()
+
+#  Processo que atualiza a aba DATAS conforme dados extraidos dos projetos no Bitrix
+
     if window == janela1 and event == 'Atualizar planilha de gestão' \
             and (values['-ENTRADA1-'] != '' and values['-SAIDA-'] != ''
                  and values['-SAIDA-'] != values['-ENTRADA1-']):
@@ -113,7 +116,8 @@ while True:
                 df1 = pd.DataFrame(df1,
                                    columns=['ID', 'Tarefa', 'Active', 'Deadline', 'Created by', 'Responsible person',
                                             'Status', 'Project', 'Created on', 'Closed on', 'Planned duration',
-                                            'Time spent', 'Tags', 'Etapa', 'Natureza', 'Frente de Trabalho'])
+                                            'Time spent', 'Tags', 'Etapa', 'Natureza', 'Frente de Trabalho',
+                                            'Sprint', 'Task', 'Description'])
                 df2 = pd.DataFrame(pd.read_excel(path_saida, sheet_name='Datas'))
                 # Atualizar dataframe da planilha de gestão
                 for i, row in df1.iterrows():
@@ -137,6 +141,18 @@ while True:
                     if row['ID'] not in list(df2['ID']):
                         df2.loc[len(df2)] = list(row)
                 # Fim da atualização
+                for i, row in df2.iterrows():
+                    a = row['Tarefa'].find(']')
+                    b = row['Tarefa'][(a+2):300]
+                    df2.loc[i, 'Task'] = b
+                    c = row['Tarefa'].find('Sprint')
+                    if c == 1:
+                        d = row['Tarefa'][(c+7):10].replace(' ', '')
+                        df2.loc[i, 'Sprint'] = d
+                    else:
+                        d = row['Tarefa'][(c+7):c+9].replace(']', '').replace(' ', '')
+                        df2.loc[i, 'Sprint'] = d
+                    # print(c)
                 book = load_workbook(path_saida)
                 writer = pd.ExcelWriter(path_saida, engine='openpyxl')
                 writer.book = book
@@ -168,6 +184,9 @@ while True:
     if window == janela3 and event == sg.WINDOW_CLOSED:
         break
     # Operações Janela 4
+
+#  Processo que gera o arquivo .CSV a partir da aba Backlog - importar para importação no Bitrix
+
     if window == janela4 and event == 'OK' and (values['-ENTRADA1-'] != '' and values['-SAIDA-'] != ''):
         try:
             path_saida = values['-SAIDA-']
@@ -208,6 +227,9 @@ while True:
     if window == janela5 and event == 'Voltar':
         janela5.close()
         janela6 = menu()
+
+#  Processo que faz o match para encontrar a task id
+
     if window == janela5 and event == 'OK' and (values['-ENTRADA1-'] != '' and values['-SAIDA-'] != ''
                                                 and values['-SAIDA-'] != values['-ENTRADA1-']):
         path_saida = values['-SAIDA-']
@@ -234,6 +256,18 @@ while True:
             writer.book = book
             writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
             df2.to_excel(writer, sheet_name="Backlog - importar", header=True, index=False)
+            writer.save()
+            df3 = pd.DataFrame((pd.read_excel(path_saida, sheet_name='Datas')))
+            for i, row in df2.iterrows():
+                df3.loc[df3['ID'] == row['ID'], 'Etapa'] = row['Etapa']
+                df3.loc[df3['ID'] == row['ID'], 'Natureza'] = row['Natureza']
+                df3.loc[df3['ID'] == row['ID'], 'Frente de Trabalho'] = row['Frente de Trabalho']
+                df3.loc[df3['ID'] == row['ID'], 'Description'] = row['Description']
+            book = load_workbook(path_saida)
+            writer = pd.ExcelWriter(path_saida, engine='openpyxl')
+            writer.book = book
+            writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
+            df3.to_excel(writer, sheet_name="Datas", header=True, index=False)
             writer.save()
             janela5.close()
             janela3 = sucesso()
