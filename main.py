@@ -19,10 +19,11 @@ def escolher_arquivo():  # Janela 1
 def erro():  # Janela 2
     sg.theme('DarkRed')
     layout = [[sg.Text('Favor verificar:\n'
-                       '\n1) Extensão do arquivo de entrada está conforme coletado no Bitrix24\n'
-                       '2) Extensão do arquivo de saída está em formato .xlsx\n'
-                       '3) Os arquivos selecionados são diferentes\n'
-                       '4) Selecionou pelo menos um arquivo de entrada e o arquivo de saida\n')],
+                       '\n1) Extensão do arquivo de entrada está conforme coletado no Bitrix24;\n'
+                       '2) Extensão do arquivo de saída está em formato .xlsx;\n'
+                       '3) Os arquivos selecionados são diferentes;\n'
+                       '4) Selecionou pelo menos um arquivo de entrada e o arquivo de saida;\n'
+                       '5) Planilhas utilizadas estão fechadas.')],
               [sg.Button('Voltar'), sg.Button('Cancelar')]]
     return sg.Window('ERRO', layout=layout, size=(500, 200), finalize=True)
 
@@ -41,6 +42,8 @@ def convert_csv():  # Janela 4
               [sg.Text('Caminho do arquivo de Gestão do backlog')],
               [sg.Input(), sg.FileBrowse(key='-SAIDA-', file_types=(('Text Files', '*.xls'),
                                                                     ('Text Files', '*.xlsx')))],
+              [sg.Text('Em qual idioma esta sua planilha? Digite: PT ou EN')],
+              [sg.InputText(key='-IDIOMA-')],
               [sg.Button('OK'), sg.Button('Voltar'), sg.Button('Cancelar')]]
     return sg.Window('Conversor de aba para csv', layout=layout, finalize=True)
 
@@ -70,7 +73,8 @@ def menu():  # Janela 6
 janela1, janela2, janela3, janela4, janela5, janela6 = None, None, None, None, None, menu()
 while True:
     window, event, values = sg.read_all_windows()
-    # Operações no MENU
+
+# Operações no MENU
     if window == janela6 and event == sg.WINDOW_CLOSED:
         break
     if window == janela6 and event == 'Cancelar':
@@ -84,7 +88,8 @@ while True:
     if window == janela6 and event == 'Gerar arquivo de importação':
         janela6.close()
         janela4 = convert_csv()
-    # Operações Janela 1
+
+# Operações Janela 1
     if window == janela1 and event == sg.WINDOW_CLOSED:
         break
     if window == janela1 and event == 'Cancelar':
@@ -99,7 +104,6 @@ while True:
         janela2 = erro()
 
 #  Processo que atualiza a aba DATAS conforme dados extraidos dos projetos no Bitrix
-
     if window == janela1 and event == 'Atualizar planilha de gestão' \
             and (values['-ENTRADA1-'] != '' and values['-SAIDA-'] != ''
                  and values['-SAIDA-'] != values['-ENTRADA1-']):
@@ -112,14 +116,16 @@ while True:
                     table = pd.read_html(path)[0]
                     data = pd.DataFrame(table)
                     df1 = df1.append(data)
-                # Inicio da comparação
+
+# Inicio da comparação
                 df1 = pd.DataFrame(df1,
                                    columns=['ID', 'Tarefa', 'Active', 'Deadline', 'Created by', 'Responsible person',
                                             'Status', 'Project', 'Created on', 'Closed on', 'Planned duration',
                                             'Time spent', 'Tags', 'Frente de Trabalho', 'Etapa', 'Natureza',
                                             'Sprint', 'Task', 'Description'])
                 df2 = pd.DataFrame(pd.read_excel(path_saida, sheet_name='Datas'))
-                # Atualizar dataframe da planilha de gestão
+
+# Atualizar dataframe da planilha de gestão (aba Datas)
                 for i, row in df1.iterrows():
                     df2.loc[df2['ID'] == row['ID'], 'Tarefa'] = row['Tarefa']
                     df2.loc[df2['ID'] == row['ID'], 'Active'] = row['Active']
@@ -136,11 +142,11 @@ while True:
                     df2.loc[df2['ID'] == row['ID'], 'Frente de Trabalho'] = row['Frente de Trabalho']
                     df2.loc[df2['ID'] == row['ID'], 'Etapa'] = row['Etapa']
                     df2.loc[df2['ID'] == row['ID'], 'Natureza'] = row['Natureza']
-                # Criar linha com novos dados
+# Criar linha com novos dados na aba Datas
                 for i, row in df1.iterrows():
                     if row['ID'] not in list(df2['ID']):
                         df2.loc[len(df2)] = list(row)
-                # Fim da atualização
+# Fim da atualização
                 for i, row in df2.iterrows():
                     a = row['Tarefa'].find(']')
                     b = row['Tarefa'][(a+2):300]
@@ -148,19 +154,67 @@ while True:
                     c = row['Tarefa'].find('Sprint')
                     if c == 1:
                         d = row['Tarefa'][(c+7):10].replace(' ', '')
-                        df2.loc[i, 'Sprint'] = d
+                        #df2.loc[i, 'Sprint'] = d
+                        df2.loc[i, 'Sprint'] = str(d).zfill(2)  # teste
                     else:
                         d = row['Tarefa'][(c+7):c+9].replace(']', '').replace(' ', '')
-                        df2.loc[i, 'Sprint'] = d
+                        #df2.loc[i, 'Sprint'] = d
+                        df2.loc[i, 'Sprint'] = str(d).zfill(2)  # teste
                     # print(c)
+
+# Atualizar aba Sheets
+                df3 = pd.DataFrame(pd.read_excel(path_saida, sheet_name='Sheets'))
+               #print(df3)
+                linhas = 0
+                for i, row in df3.iterrows():
+                    linhas = linhas + 1
+               #print(linhas)
+                for linhas, row in df3.iterrows():
+                    df3 = df3.drop(linhas)
+                   #print(df3)
+
+                for i, row in df2.iterrows():
+                    df3['Sprint'] = df2['Sprint']
+                    df3['ID'] = df2['ID']
+                    df3['Frente de Trabalho'] = df2['Frente de Trabalho']
+                    df3['Etapa'] = df2['Etapa']
+                    df3['Natureza'] = df2['Natureza']
+                    df3['Task'] = df2['Task']
+                    df3['Responsavel'] = df2['Responsible person']
+                    df3['Status'] = df2['Status']
+                    df3['Inicio'] = df2['Created on']
+                    df3['Conclusao'] = df2['Closed on']
+                    df3['Horas Estimadas'] = df2['Planned duration']
+                    df3['Horas Executadas'] = df2['Time spent']
+                    df3['Projeto'] = df2['Project']
+
+                for i, row in df3.iterrows():
+                    hrs_exec = str(row['Horas Executadas'])
+                    hrs_est = str(row['Horas Estimadas'])
+                    if hrs_exec != 'nan':
+                        hh, mm, ss = hrs_exec.split(':')
+                        dec_exec = (int(hh) * 3600 + int(mm) * 60 + int(ss)) / 3600
+                        df3.loc[i, 'Tempo Efetivo'] = dec_exec
+                    if hrs_exec == 'nan':
+                        df3.loc[i, 'Tempo Efetivo'] = ''
+                    if hrs_est != 'nan':
+                        hh, mm, ss = hrs_est.split(':')
+                        dec_est = (int(hh) * 3600 + int(mm) * 60 + int(ss)) / 3600
+                        df3.loc[i, 'Tempo Estimado'] = dec_est
+                    if hrs_est == 'nan':
+                        df3.loc[i, 'Tempo Estimado'] = ''
+
+
                 book = load_workbook(path_saida)
                 writer = pd.ExcelWriter(path_saida, engine='openpyxl')
                 writer.book = book
                 writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
                 df2.to_excel(writer, "Datas", header=True, index=False)
+                df3.to_excel(writer, "Sheets", header=True, index=False)
                 writer.save()
                 janela1.close()
                 janela3 = sucesso()
+
             except:
                 janela1.close()
                 janela2 = erro()
@@ -187,23 +241,40 @@ while True:
 
 #  Processo que gera o arquivo .CSV a partir da aba Backlog - importar para importação no Bitrix
 
-    if window == janela4 and event == 'OK' and (values['-ENTRADA1-'] != '' and values['-SAIDA-'] != ''):
+    if window == janela4 and event == 'OK' and (values['-ENTRADA1-'] != '' and values['-SAIDA-'] != '') and \
+            values['-IDIOMA-'] != '':
         try:
             path_saida = values['-SAIDA-']
             path_salvar = values['-ENTRADA1-']
+            idioma = str(values['-IDIOMA-'])
             df2 = pd.read_excel(path_saida, sheet_name='Backlog - importar')
-            df2.to_csv(path_salvar + '\Tasks.csv', columns=['Name', 'Description', 'Important task',
-                                                            'Responsible person',
-                                                            'Created by', 'Participants',
-                                                            'Observers', 'Deadline', 'Start task on',
-                                                            'Complete task by',
-                                                            'Responsible person can change deadline',
-                                                            'Skip weekends and holidays', 'Approve task when completed',
-                                                            'Derive task dates from subtask dates',
-                                                            'Auto complete task when subtasks have been completed',
-                                                            'Project', 'Task has time constraints',
-                                                            'Task completion time, seconds', 'Checklist',
-                                                            'Tags'], index=None, header=True, encoding='utf-8')
+            if idioma == 'EN':
+                df2.to_csv(path_salvar + '\Tasks.csv', columns=['Name', 'Description', 'Important task',
+                                                                'Responsible person',
+                                                                'Created by', 'Participants',
+                                                                'Observers', 'Deadline',
+                                                                'Responsible person can change deadline',
+                                                                'Skip weekends and holidays', 'Approve task when completed',
+                                                                'Derive task dates from subtask dates',
+                                                                'Auto complete task when subtasks have been completed',
+                                                                'Project', 'Task has time constraints',
+                                                                'Task completion time, seconds', 'Checklist',
+                                                                'Tags'], index=None, header=True, encoding='utf-8-sig',
+                                                                 date_format='%d/%m/%Y %H:%M:%S')
+            if idioma == 'PT':
+                df2.to_csv(path_salvar + '\Tasks.csv', columns=['Nome', 'Descrição', 'Tarefa importante',
+                                                                'Pessoa responsável',
+                                                                'Criada por', 'Participantes',
+                                                                'Observadores', 'Prazo final',
+                                                                'A pessoa responsável pode alterar o prazo',
+                                                                'Pular fins de semana e feriados',
+                                                                'Verificar a tarefa após a conclusão',
+                                                                'Derivar datas da tarefa das datas da subtarefa',
+                                                                'Tarefa concluída automaticamente quando as subtarefas foram concluídas',
+                                                                'Projeto', 'Tarefa tem restrições de tempo',
+                                                                'Tempo de conclusão da tarefa, segundos', 'Lista de verificação',
+                                                                'Marcadores'], index=None, header=True, encoding='utf-8-sig',
+                                                                 date_format='%d/%m/%Y %H:%M:%S')
             janela4.close()
             janela3 = sucesso()
         except:
